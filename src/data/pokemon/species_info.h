@@ -11,6 +11,14 @@
 #define FOOTPRINT(sprite)
 #endif
 
+#if B_ENEMY_MON_SHADOW_STYLE >= GEN_4
+#define SHADOW(x, y, size)  .enemyShadowXOffset = x, .enemyShadowYOffset = y, .enemyShadowSize = size,
+#define NO_SHADOW           .suppressEnemyShadow = TRUE,
+#else
+#define SHADOW(x, y, size)
+#define NO_SHADOW
+#endif
+
 #define SIZE_32x32 1
 #define SIZE_64x64 0
 
