@@ -271,8 +271,12 @@ static void Intro_TryShinyAnimShowHealthbox(u32 battler)
     {
         if (gSprites[gBattleControllerData[battler]].callback == SpriteCallbackDummy)
         {
+#if B_ENEMY_MON_SHADOW_STYLE >= GEN_4
             if (gSprites[gBattleSpritesDataPtr->healthBoxesData[battler].shadowSpriteIdLeft].callback == SpriteCallbackDummy
                 && gSprites[gBattleSpritesDataPtr->healthBoxesData[battler].shadowSpriteIdRight].callback == SpriteCallbackDummy)
+#else
+            if (gSprites[gBattleSpritesDataPtr->healthBoxesData[battler].shadowSpriteId].callback == SpriteCallbackDummy)
+#endif
             {
                 SetBattlerShadowSpriteCallback(battler, GetMonData(&gEnemyParty[gBattlerPartyIndexes[battler]], MON_DATA_SPECIES));
             }
@@ -288,8 +292,12 @@ static void Intro_TryShinyAnimShowHealthbox(u32 battler)
         if (gSprites[gBattleControllerData[battler]].callback == SpriteCallbackDummy
             && gSprites[gBattleControllerData[BATTLE_PARTNER(battler)]].callback == SpriteCallbackDummy)
         {
+#if B_ENEMY_MON_SHADOW_STYLE >= GEN_4
             if (gSprites[gBattleSpritesDataPtr->healthBoxesData[BATTLE_PARTNER(battler)].shadowSpriteIdLeft].callback == SpriteCallbackDummy
                 && gSprites[gBattleSpritesDataPtr->healthBoxesData[BATTLE_PARTNER(battler)].shadowSpriteIdRight].callback == SpriteCallbackDummy)
+#else
+            if (gSprites[gBattleSpritesDataPtr->healthBoxesData[BATTLE_PARTNER(battler)].shadowSpriteId].callback == SpriteCallbackDummy)
+#endif
             {
                 SetBattlerShadowSpriteCallback(BATTLE_PARTNER(battler), GetMonData(&gEnemyParty[gBattlerPartyIndexes[BATTLE_PARTNER(battler)]], MON_DATA_SPECIES));
             }
