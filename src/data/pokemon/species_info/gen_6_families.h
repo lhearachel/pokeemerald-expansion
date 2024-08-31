@@ -4037,7 +4037,7 @@ const struct SpeciesInfo gSpeciesInfoGen6[] =
         .shinyPalette = gMonShinyPalette_Goomy,
         .iconSprite = gMonIcon_Goomy,
         .iconPalIndex = 5,
-        SHADOW(-1, -1, SHADOW_SIZE_S)
+        NO_SHADOW
         FOOTPRINT(Goomy)
         OVERWORLD(
             sPicTable_Goomy,
@@ -4102,7 +4102,7 @@ const struct SpeciesInfo gSpeciesInfoGen6[] =
         .shinyPalette = gMonShinyPalette_Sliggoo,
         .iconSprite = gMonIcon_Sliggoo,
         .iconPalIndex = 5,
-        SHADOW(1, 6, SHADOW_SIZE_S)
+        NO_SHADOW
         FOOTPRINT(Sliggoo)
         OVERWORLD(
             sPicTable_Sliggoo,

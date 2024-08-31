@@ -5740,7 +5740,7 @@ const struct SpeciesInfo gSpeciesInfoGen5[] =
         .shinyPalette = gMonShinyPalette_Garbodor,
         .iconSprite = gMonIcon_Garbodor,
         .iconPalIndex = 1,
-        SHADOW(0, 10, SHADOW_SIZE_L)
+        NO_SHADOW
         FOOTPRINT(Garbodor)
         OVERWORLD(
             sPicTable_Garbodor,
@@ -8006,7 +8006,7 @@ const struct SpeciesInfo gSpeciesInfoGen5[] =
         .shinyPalette = gMonShinyPalette_Joltik,
         .iconSprite = gMonIcon_Joltik,
         .iconPalIndex = 0,
-        SHADOW(-1, 5, SHADOW_SIZE_S)
+        SHADOW(0, -5, SHADOW_SIZE_S)
         FOOTPRINT(Joltik)
         OVERWORLD(
             sPicTable_Joltik,
@@ -8395,7 +8395,7 @@ const struct SpeciesInfo gSpeciesInfoGen5[] =
         .shinyPalette = gMonShinyPalette_Klinklang,
         .iconSprite = gMonIcon_Klinklang,
         .iconPalIndex = 0,
-        SHADOW(-1, 13, SHADOW_SIZE_M)
+        SHADOW(0, 13, SHADOW_SIZE_L)
         FOOTPRINT(Klinklang)
         OVERWORLD(
             sPicTable_Klinklang,
@@ -9428,7 +9428,7 @@ const struct SpeciesInfo gSpeciesInfoGen5[] =
         .shinyPalette = gMonShinyPalette_Accelgor,
         .iconSprite = gMonIcon_Accelgor,
         .iconPalIndex = 1,
-        SHADOW(-14, 8, SHADOW_SIZE_XL_BATTLE_ONLY)
+        SHADOW(-14, 8, SHADOW_SIZE_S)
         FOOTPRINT(Accelgor)
         OVERWORLD(
             sPicTable_Accelgor,
