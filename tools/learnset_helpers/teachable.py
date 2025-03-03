@@ -1,7 +1,11 @@
+from itertools import chain
+
 import glob
 import re
 import json
 import os
+
+import time
 
 # before all else, abort if the config is off
 with open("./include/config/pokemon.h", "r") as file:
@@ -14,65 +18,13 @@ with open("./include/config/pokemon.h", "r") as file:
 def parse_mon_name(name):
     return re.sub(r'(?!^)([A-Z]+)', r'_\1', name).upper()
 
-tm_moves = []
-tutor_moves = []
-
-# scan incs
-incs_to_check =  glob.glob('./data/scripts/*.inc') # all .incs in the script folder
-incs_to_check += glob.glob('./data/maps/*/scripts.inc') # all map scripts
-
-if len(incs_to_check) == 0: # disabled if no jsons present
-    quit()
-
-for file in incs_to_check:
-    with open(file, 'r') as f2:
-        raw = f2.read()
-    if 'special ChooseMonForMoveTutor' in raw:
-        for x in re.findall(r'setvar VAR_0x8005, (MOVE_.*)', raw):
-            if not x in tutor_moves:
-                tutor_moves.append(x)
-
-# scan TMs and HMs
-with open("./include/constants/tms_hms.h", 'r') as file:
-    for x in re.findall(r'F\((.*)\)', file.read()):
-        if not 'MOVE_' + x in tm_moves:
-            tm_moves.append('MOVE_' + x)
-
-# look up universal moves to exclude them
-universal_moves = []
-with open("./src/pokemon.c", "r") as file:
-    for x in re.findall(r"static const u16 sUniversalMoves\[\] =(.|\n)*?{((.|\n)*?)};", file.read())[0]:
-        x = x.replace("\n", "")
-        for y in x.split(","):
-            y = y.strip()
-            if y == "":
-                continue
-            universal_moves.append(y)
-
 # get compatibility from jsons
 def construct_compatibility_dict(force_custom_check):
     dict_out = {}
-    for pth in glob.glob('./tools/learnset_helpers/porymoves_files/*.json'):
+    for pth in glob.glob('./tools/learnset_helpers/porymoves_files/sv_custom.json'):
         f = open(pth, 'r')
-        data = json.load(f)
-        for mon in data.keys():
-            if not mon in dict_out:
-                dict_out[mon] = []
-            for move in data[mon]['LevelMoves']:
-                if not move['Move'] in dict_out[mon]:
-                    dict_out[mon].append(move['Move'])
-            #for move in data[mon]['PreEvoMoves']:
-            #    if not move in dict_out[mon]:
-            #        dict_out[mon].append(move)
-            for move in data[mon]['TMMoves']:
-                if not move in dict_out[mon]:
-                    dict_out[mon].append(move)
-            for move in data[mon]['EggMoves']:
-                if not move in dict_out[mon]:
-                    dict_out[mon].append(move)
-            for move in data[mon]['TutorMoves']:
-                if not move in dict_out[mon]:
-                    dict_out[mon].append(move)
+        dict_out = json.load(f)
+        dict_out = {mon: set(moves) for mon, moves in dict_out.items()}
 
     # if the file was not previously generated, check if there is custom data there that needs to be preserved
     with open("./src/data/pokemon/teachable_learnsets.h", 'r') as file:
@@ -123,48 +75,115 @@ def construct_compatibility_dict(force_custom_check):
             dict_out = construct_compatibility_dict(False)
     return dict_out
 
+tm_moves = []
+tutor_moves = []
+
+time_00_start = time.perf_counter_ns(), time.process_time_ns()
+
+# scan incs
+incs_to_check =  glob.glob('./data/scripts/*.inc') # all .incs in the script folder
+incs_to_check += glob.glob('./data/maps/*/scripts.inc') # all map scripts
+
+time_01_glob_incs = time.perf_counter_ns(), time.process_time_ns()
+
+if len(incs_to_check) == 0: # disabled if no jsons present
+    quit()
+
+for file in incs_to_check:
+    with open(file, 'r') as f2:
+        raw = f2.read()
+    if 'special ChooseMonForMoveTutor' in raw:
+        for x in re.findall(r'setvar VAR_0x8005, (MOVE_.*)', raw):
+            if not x in tutor_moves:
+                tutor_moves.append(x)
+
+time_02_scan_incs = time.perf_counter_ns(), time.process_time_ns()
+
+# scan TMs and HMs
+with open("./include/constants/tms_hms.h", 'r') as file:
+    for x in re.findall(r'F\((.*)\)', file.read()):
+        if not 'MOVE_' + x in tm_moves:
+            tm_moves.append('MOVE_' + x)
+
+teachable_moves = set(tm_moves) | set(tutor_moves)
+
+time_03_scan_tms = time.perf_counter_ns(), time.process_time_ns()
+
+# look up universal moves to exclude them
+universal_moves = []
+with open("./src/pokemon.c", "r") as file:
+    for x in re.findall(r"static const u16 sUniversalMoves\[\] =(.|\n)*?{((.|\n)*?)};", file.read())[0]:
+        x = x.replace("\n", "")
+        for y in x.split(","):
+            y = y.strip()
+            if y == "":
+                continue
+            universal_moves.append(y)
+
+time_04_excl_common = time.perf_counter_ns(), time.process_time_ns()
+
 compatibility_dict = construct_compatibility_dict(True)
+
+time_05_build_compats = time.perf_counter_ns(), time.process_time_ns()
 
 # actually prepare the file
 with open("./src/data/pokemon/teachable_learnsets.h", 'r') as file:
     out = file.read()
-    list_of_mons = re.findall(r'static const u16 s(.*)TeachableLearnset', out)
-for mon in list_of_mons:
-    mon_parsed = parse_mon_name(mon)
-    tm_learnset = []
-    tutor_learnset = []
-    if mon_parsed == "NONE" or mon_parsed == "MEW":
+    # list_of_mons = re.findall(r'static const u16 s(.*)TeachableLearnset', out)
+
+# SUB_PAT = re.compile(r'static const u16 s%sTeachableLearnset\[\] = {[\s\S]*?};')
+lf = '\n'
+lf_tab = ',\n    '
+
+SPECIES_TEACHABLE_PAT = re.compile(r'static const u16 s(?P<species>.+)TeachableLearnset\[\] = {[\s\S]*?};')
+new_out = ""
+cursor = 0
+for match in SPECIES_TEACHABLE_PAT.finditer(out):
+    m_start, m_end = match.span()
+    species = match.group('species')
+    species_cap = parse_mon_name(species)
+
+    # Suppress NONE (which learns nothing) and MEW (which learns everything)
+    if species_cap == "NONE" or species_cap == "MEW":
         continue
-    if not mon_parsed in compatibility_dict:
-        print("Unable to find %s in json" % mon)
+    if species_cap not in compatibility_dict:
+        print(f"Unable to find {species} in json")
         continue
-    for move in tm_moves:
-        if move in universal_moves:
-            continue
-        if move in tm_learnset:
-            continue
-        if move in compatibility_dict[mon_parsed]:
-            tm_learnset.append(move)
-            continue
-    for move in tutor_moves:
-        if move in universal_moves:
-            continue
-        if move in tutor_learnset:
-            continue
-        if move in compatibility_dict[mon_parsed]:
-            tutor_learnset.append(move)
-            continue
-    tm_learnset.sort()
-    tutor_learnset.sort()
-    tm_learnset += tutor_learnset
-    repl = "static const u16 s%sTeachableLearnset[] = {\n    " % mon
-    if len(tm_learnset) > 0:
-        repl += ",\n    ".join(tm_learnset) + ",\n    "
-    repl += "MOVE_UNAVAILABLE,\n};"
-    newout = re.sub(r'static const u16 s%sTeachableLearnset\[\] = {[\s\S]*?};' % mon, repl, out)
-    if newout != out:
-        out = newout
-        print("Updated %s" % mon)
+
+    # Pre-print everything up to the match
+    new_out += out[cursor:m_start]
+    cursor += m_end
+
+    # Compute the teachable set for this species
+    species_teachables = sorted(filter(
+        lambda move: move not in universal_moves and move in teachable_moves,
+        compatibility_dict[species_cap]
+    ))
+
+    # Append to the new output
+    entry = f"static const u16 s{species}TeachableLearnset[] = {{{lf}    {lf_tab.join(chain(species_teachables, ('MOVE_UNAVAILABLE',)))},{lf}}};"
+    new_out += entry
+
+# for mon in list_of_mons:
+#     mon_parsed = parse_mon_name(mon)
+#     if mon_parsed == "NONE" or mon_parsed == "MEW":
+#         continue
+#     if mon_parsed not in compatibility_dict:
+#         print("Unable to find %s in json" % mon)
+#         continue
+#
+#     teachables = sorted(filter(
+#         lambda move: move not in universal_moves and (move in tm_moves or move in tutor_moves),
+#         compatibility_dict[mon_parsed]
+#     ))
+#
+#     repl = f"static const u16 s{mon}TeachableLearnset[] = {{{lf}    {lf_tab.join(chain(teachables, ('MOVE_UNAVAILABLE',)))},{lf}}};"
+#     newout = re.sub(r'static const u16 s%sTeachableLearnset\[\] = {[\s\S]*?};' % mon, repl, out)
+#     if newout != out:
+#         out = newout
+#         print("Updated %s" % mon)
+
+time_06_build_output = time.perf_counter_ns(), time.process_time_ns()
 
 # add/update header
 header = "//\n// DO NOT MODIFY THIS FILE! It is auto-generated from tools/learnset_helpers/teachable.py\n//\n\n"
@@ -205,10 +224,23 @@ for move in universal_moves:
     header_print("- " + move)
 header += "// " + longest_move_name * "*" + " //\n\n"
 
-if not "// DO NOT MODIFY THIS FILE!" in out:
-    out = header + out
+if not "// DO NOT MODIFY THIS FILE!" in new_out:
+    new_out = header + new_out
 else:
-    out = re.sub(r"\/\/\n\/\/ DO NOT MODIFY THIS FILE!(.|\n)*\* \/\/\n\n", header, out)
+    new_out = re.sub(r"\/\/\n\/\/ DO NOT MODIFY THIS FILE!(.|\n)*\* \/\/\n\n", header, new_out)
 
 with open("./src/data/pokemon/teachable_learnsets.h", 'w') as file:
-    file.write(out)
+    file.write(new_out)
+
+time_07_write_output = time.perf_counter_ns(), time.process_time_ns()
+
+print( "| step          | real time (ns) | cpu time (ns) |")
+print( "| ------------- | -------------- | ------------- |")
+print(f"| glob .incs    | {time_01_glob_incs[0] - time_00_start[0]: >14} | {time_01_glob_incs[1] - time_00_start[1]: >13} |")
+print(f"| scan .incs    | {time_02_scan_incs[0] - time_01_glob_incs[0]: >14} | {time_02_scan_incs[1] - time_01_glob_incs[1]: >13} |")
+print(f"| scan TMs      | {time_03_scan_tms[0] - time_02_scan_incs[0]: >14} | {time_03_scan_tms[1] - time_02_scan_incs[1]: >13} |")
+print(f"| excl. common  | {time_04_excl_common[0] - time_03_scan_tms[0]: >14} | {time_04_excl_common[1] - time_03_scan_tms[1]: >13} |")
+print(f"| build compat  | {time_05_build_compats[0] - time_04_excl_common[0]: >14} | {time_05_build_compats[1] - time_04_excl_common[1]: >13} |")
+print(f"| build output  | {time_06_build_output[0] - time_05_build_compats[0]: >14} | {time_06_build_output[1] - time_05_build_compats[1]: >13} |")
+print(f"| write output  | {time_07_write_output[0] - time_06_build_output[0]: >14} | {time_07_write_output[1] - time_06_build_output[1]: >13} |")
+print(f"| all           | {time_07_write_output[0] - time_00_start[0]: >14} | {time_07_write_output[1] - time_00_start[1]: >13} |")
